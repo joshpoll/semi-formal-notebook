@@ -72,16 +72,19 @@ export const Cell = (props: CellProps) => {
 
   const [showCode, setShowCode] = useState(false);
 
-  const [cellName, setCellName] = useState(props.title);
+  const [cellName, setCellName] = useState<string | null>(null);
 
   return (
     <div className="w-full h-full space-y-4 p-4">
       <div className="flex justify-center">Output</div>
-      <div className="grid grid-cols-3 w-full h-full gap-x-4 gap-y-2">
+      <div className="grid grid-cols-[1fr,1.5fr,1fr] w-full h-full gap-x-4 gap-y-2">
         <div className="flex justify-left col-start-2 col-span-2">
           <input
-            className="hover:border-blue-500 hover:border-solid hover:border-2 font-medium"
-            value={cellName}
+            className={`hover:border-blue-500 hover:border-solid hover:border-2 ${
+              cellName ? "font-medium" : "font-normal"
+            } ${cellName ? "" : "italic"}`}
+            value={cellName ?? ""}
+            placeholder="untitled"
             onChange={(e) => setCellName(e.target.value)}
           />
         </div>
@@ -93,7 +96,7 @@ export const Cell = (props: CellProps) => {
             <Tldraw overrides={overrides} className={id} autoFocus={focusedEditor === id} components={components} />
           </div>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-auto">
           <button
             className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
             onClick={() => setShowCode(!showCode)}
@@ -101,7 +104,7 @@ export const Cell = (props: CellProps) => {
             {showCode ? "Hide Code" : "Show Code"}
           </button>
           {showCode ? (
-            <pre>{`import numpy as np
+            <pre className="text-sm">{`import numpy as np
 
 # The first function is for sampling t_i from a uniform distribution.
 def stratified_sampling(t_n, t_f, N, i):
