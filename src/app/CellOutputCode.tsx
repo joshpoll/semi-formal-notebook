@@ -66,47 +66,40 @@ const components: TLComponents = {
   DebugPanel: null,
 };
 
-export const Cell = (props: CellProps) => {
+export const CellOutputCode = (props: CellProps) => {
   const { focusedEditor, setFocusedEditor } = useContext(focusedEditorContext);
   const id = useId();
 
   const [showCode, setShowCode] = useState(false);
 
-  const [cellName, setCellName] = useState<string | null>(null);
+  const [cellName, setCellName] = useState<string | null>("!CELL OUTPUT CODE!");
 
   return (
     <div className="w-full h-full space-y-4 p-4">
+      <div className="flex justify-center">
+        <input
+          className={`hover:border-blue-500 hover:border-solid hover:border-2 ${
+            cellName ? "font-medium" : "font-normal"
+          } ${cellName ? "" : "italic"}`}
+          value={cellName ?? ""}
+          placeholder="untitled"
+          onChange={(e) => setCellName(e.target.value)}
+        />
+      </div>
       <div className="flex justify-center">
         <img src="https://www.cs.ubc.ca/~tmm/courses/547-20/tools/images/vega-lite_barchart.png" />
       </div>
       <div className="grid grid-cols-[1fr,1.5fr,1fr] w-full h-full gap-x-4 gap-y-2">
         <div className="flex justify-left col-start-2 col-span-2">
-          <input
-            className={`hover:border-blue-500 hover:border-solid hover:border-2 ${
-              cellName ? "font-medium" : "font-normal"
-            } ${cellName ? "" : "italic"}`}
-            value={cellName ?? ""}
-            placeholder="untitled"
-            onChange={(e) => setCellName(e.target.value)}
-          />
-        </div>
-        <div className="w-full h-full space-y-4 col-start-2">
-          <div
-            className="flex justify-center tldraw h-[36rem] hover:border-blue-500 hover:border-solid hover:border-2"
-            onFocus={() => setFocusedEditor(id)}
-          >
-            <Tldraw overrides={overrides} className={id} autoFocus={focusedEditor === id} components={components} />
-          </div>
-        </div>
-        <div className="space-y-4 overflow-auto">
-          <button
-            className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
-            onClick={() => setShowCode(!showCode)}
-          >
-            {showCode ? "Hide Code" : "Show Code"}
-          </button>
-          {showCode ? (
-            <pre className="text-sm">{`import numpy as np
+          <div className="space-y-4 overflow-auto">
+            <button
+              className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
+              onClick={() => setShowCode(!showCode)}
+            >
+              {showCode ? "Hide Code" : "Show Code"}
+            </button>
+            {showCode ? (
+              <pre className="text-sm">{`import numpy as np
 
 # The first function is for sampling t_i from a uniform distribution.
 def stratified_sampling(t_n, t_f, N, i):
@@ -125,7 +118,16 @@ def quadrature_rule(N, c, sigma):
     C_hat_r += T_i * (1 - np.exp(-sigma[i] * delta_i)) * c[i-1]
   return C_hat_r
 `}</pre>
-          ) : null}
+            ) : null}
+          </div>
+        </div>
+        <div className="w-full h-full space-y-4 col-start-2">
+          <div
+            className="flex justify-center tldraw h-[36rem] hover:border-blue-500 hover:border-solid hover:border-2"
+            onFocus={() => setFocusedEditor(id)}
+          >
+            <Tldraw overrides={overrides} className={id} autoFocus={focusedEditor === id} components={components} />
+          </div>
         </div>
       </div>
     </div>

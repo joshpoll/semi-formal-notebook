@@ -3,6 +3,7 @@ import { Fragment, createContext, useCallback, useState } from "react";
 import { Tldraw } from "tldraw";
 import { CellDivider } from "./CellDivider";
 import { Cell } from "./Cell";
+import { CellOutputCode } from "./CellOutputCode";
 
 type Notebook = Array<{
   id: string;
@@ -59,6 +60,12 @@ export default function Home() {
   return (
     <div className="space-y-8 py-12" onPointerDown={() => setFocusedEditor(null)}>
       <focusedEditorContext.Provider value={{ focusedEditor, setFocusedEditor }}>
+        <div className="flex justify-center">
+          <CellDivider onAddCell={addCell(null)} />
+        </div>
+        <div className="flex justify-center">
+          <CellOutputCode {...notebook[0]} />
+        </div>
         <div className="flex justify-center">
           <CellDivider onAddCell={addCell(null)} />
         </div>
