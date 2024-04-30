@@ -2,6 +2,28 @@
 
 Implementation inspired by percival.ink.
 
+## Cells
+
+Each cell has a semi-formal canvas specification region, a data region, and a view region.
+
+(Data is essentially a formal, text-based kind of view like a traditional program. It _is_ a
+traditional program.)
+
+There are four kinds of cells:
+
+- **Data:** e.g. `{foo: "bar"}`. has a view that can modify the data
+- **Computed:** e.g. `dataset.foo`. has a view but it _cannot_ modify the data since it is computed
+  in terms of other cells
+- **Function:** e.g. `def baz(): ...`. doesn't have a view for now. if it did have a view I think it would
+  be explaining the code and not allow modification
+- **View:** e.g. data vis. a data or computed cell that returns HTML. in contrast to data and
+  computed cells, which use auto-generated views that cannot be modified, this cell specifies a custom view
+
+**TODOs:** I'm not sure if these cell types really make sense. They may be imposing artificial
+boundaries. For example, maybe a function's view could modify some constant inside that function's
+body? Why put arbitrary restrictions on editing views? It's for simplicity but maybe it's more
+annoying than it's worth.
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started

@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, createContext, useCallback, useState } from "react";
+import { Dispatch, Fragment, SetStateAction, createContext, useCallback, useState } from "react";
 import { Tldraw } from "tldraw";
 import { CellDivider } from "./CellDivider";
 import { Cell } from "./Cell";
@@ -24,7 +24,22 @@ export const focusedEditorContext = createContext(
   }
 );
 
+type CellType = "data" | "computed" | "function" | "view";
+
+type CellStateEntry = {
+  name: string;
+  type: CellType;
+  data: string;
+  view: string;
+};
+
+type CellState = { [id: string]: CellStateEntry };
+
+export const cellStateContext = createContext<[CellState, Dispatch<SetStateAction<CellState>>]>([{}, () => {}]);
+
 export default function Home() {
+  const [cellState, setCellState] = useState<CellState>({});
+
   const [focusedEditor, _setFocusedEditor] = useState<string | null>("A");
 
   const setFocusedEditor = useCallback(
@@ -42,11 +57,11 @@ export default function Home() {
       title: "Hello World",
       content: "This is a notebook",
     },
-    {
-      id: "2",
-      title: "Hello World 2",
-      content: "This is a notebook 2",
-    },
+    // {
+    //   id: "2",
+    //   title: "Hello World 2",
+    //   content: "This is a notebook 2",
+    // },
   ]);
 
   const addCell = (index: number | null) => () => {
@@ -68,27 +83,23 @@ export default function Home() {
       {/* <JupyterCellNoSSR />
       <JupyterCellNoSSR /> */}
       {/* <JupyterNotebookNoSSR /> */}
-      <focusedEditorContext.Provider value={{ focusedEditor, setFocusedEditor }}>
-        <div className="flex justify-center">
-          <CellDivider onAddCell={addCell(null)} />
-        </div>
-        <div className="flex justify-center">
-          <CellOutputCode {...notebook[0]} />
-        </div>
-        <div className="flex justify-center">
-          <CellDivider onAddCell={addCell(null)} />
-        </div>
-        {notebook.map((cell, i) => (
-          <Fragment key={cell.id}>
-            <div className="flex justify-center">
-              <Cell {...cell} />
-            </div>
-            <div className="flex justify-center">
-              <CellDivider onAddCell={addCell(i)} />
-            </div>
-          </Fragment>
-        ))}
-      </focusedEditorContext.Provider>
+      <cellStateContext.Provider value={[cellState, setCellState]}>
+        <focusedEditorContext.Provider value={{ focusedEditor, setFocusedEditor }}>
+          <div className="flex justify-center">
+            <CellDivider onAddCell={addCell(null)} />
+          </div>
+          {notebook.map((cell, i) => (
+            <Fragment key={cell.id}>
+              <div className="flex justify-center">
+                <CellOutputCode />
+              </div>
+              <div className="flex justify-center">
+                <CellDivider onAddCell={addCell(i)} />
+              </div>
+            </Fragment>
+          ))}
+        </focusedEditorContext.Provider>
+      </cellStateContext.Provider>
     </div>
   );
 }

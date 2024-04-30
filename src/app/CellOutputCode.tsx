@@ -1,16 +1,16 @@
 import { TLComponents, TLShape, TLUiOverrides, Tldraw, getSvgAsImage } from "tldraw";
 import { addGridToSvg } from "./addGridToSvg";
 import { useCallback, useContext, useId, useMemo, useState } from "react";
-import { focusedEditorContext } from "./page";
+import { cellStateContext, focusedEditorContext } from "./page";
 import JupyterCell from "@/JupyterCell";
 import { getHtmlFromOpenAI } from "./getHtmlFromOpenAI";
 import { getCanvasText } from "./getCanvasText";
 import { EXAMPLE_RESPONSE } from "./prompt";
 
 export type CellProps = {
-  id: string;
-  title: string;
-  content: string;
+  // id: string;
+  // title: string;
+  // content: string;
 };
 
 export function blobToBase64(blob: Blob): Promise<string> {
@@ -136,31 +136,82 @@ const components: TLComponents = {
 };
 
 export const CellOutputCode = (props: CellProps) => {
+  const [cellState, setCellState] = useContext(cellStateContext);
   const { focusedEditor, setFocusedEditor } = useContext(focusedEditorContext);
   const id = useId();
 
-  const [showCode, setShowCode] = useState(false);
+  const [showViewOfCode, setShowViewOfCode] = useState(false);
+  const [showData, setShowData] = useState(false);
   const [showSFP, setShowSFP] = useState(true);
 
-  const [cellName, setCellName] = useState<string | null>("!CELL OUTPUT CODE!");
+  // const [cellName, setCellName] = useState<string | null>("!CELL OUTPUT CODE!");
+  const cellName = cellState[id]?.name;
 
-  const [code, setCode] = useState<string>(
-    `return '<img src="https://www.cs.ubc.ca/~tmm/courses/547-20/tools/images/vega-lite_barchart.png"></img>'`
+  const setCellName = useCallback(
+    (name: string) => {
+      setCellState((state) => ({
+        ...state,
+        [id]: {
+          ...state[id],
+          name,
+        },
+      }));
+    },
+    [id, setCellState]
   );
 
-  const [data, setData] = useState<any>(undefined);
+  const data = cellState[id]?.data;
 
-  const appliedOverrides = useMemo(() => overrides(setCode, setData), []);
+  const setData = useCallback(
+    (data: any) => {
+      setCellState((state) => ({
+        ...state,
+        [id]: {
+          ...state[id],
+          data,
+        },
+      }));
+    },
+    [id, setCellState]
+  );
+
+  const view = cellState[id]?.view;
+
+  const setView = useCallback(
+    (view: string) => {
+      setCellState((state) => ({
+        ...state,
+        [id]: {
+          ...state[id],
+          view,
+        },
+      }));
+    },
+    [id, setCellState]
+  );
+
+  // const [code, setCode] = useState<string>(
+  //   `return '<img src="https://www.cs.ubc.ca/~tmm/courses/547-20/tools/images/vega-lite_barchart.png"></img>'`
+  // );
+
+  // const [data, setData] = useState<any>(undefined);
+
+  const appliedOverrides = useMemo(
+    () => overrides(setView, (data) => setData(JSON.stringify(data))),
+    [setData, setView]
+  );
 
   // changes when the code is updated
   const codeFunction = useMemo(() => {
-    return new Function("data", "setData", code);
-  }, [code]);
+    return new Function("data", "setData", view);
+  }, [view]);
 
   // const cells = "";
 
   // changes when either the code is updated or the rest of the notebook is updated
-  const output = useMemo(() => codeFunction(data, setData), [codeFunction, data]);
+  const output = useMemo(() => {
+    return codeFunction(JSON.parse(data ?? "{}"), (data: any) => setData(JSON.stringify(data)));
+  }, [codeFunction, data, setData]);
 
   return (
     <div className="w-full h-full space-y-4 p-4">
@@ -175,28 +226,43 @@ export const CellOutputCode = (props: CellProps) => {
         />
       </div>
       <div className="grid grid-cols-[1fr,1.5fr,1fr] w-full h-full gap-x-4 gap-y-2">
-        <div className="col-start-2">
+        {/* <div className="col-start-2">
           <textarea
             className="w-full h-full"
             rows={20}
             value={JSON.stringify(data)}
             onChange={(e) => setData(JSON.parse(e.target.value))}
           />
-        </div>
+        </div> */}
         <div className="col-start-2" dangerouslySetInnerHTML={{ __html: output }} />
         <div className="col-start-2">
           <button
             className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
-            onClick={() => setShowCode(!showCode)}
+            onClick={() => setShowViewOfCode(!showViewOfCode)}
           >
-            {showCode ? "Hide Code" : "Show Code"}
+            {showViewOfCode ? "Hide ViewOf Code" : "Show ViewOf Code"}
           </button>
         </div>
-        {showCode ? (
+        {showViewOfCode ? (
           <div className="flex justify-left col-start-2">
             {/* <div className={`${showCode ? "" : "invisible"} w-full h-full`}> */}
             {/* <JupyterCell /> */}
-            <textarea className="w-full h-full" rows={20} value={code} onChange={(e) => setCode(e.target.value)} />
+            <textarea className="w-full h-full" rows={20} value={view} onChange={(e) => setView(e.target.value)} />
+          </div>
+        ) : null}
+        <div className="col-start-2">
+          <button
+            className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
+            onClick={() => setShowData(!showData)}
+          >
+            {showData ? "Hide Data/Code" : "Show Data/Code"}
+          </button>
+        </div>
+        {showData ? (
+          <div className="flex justify-left col-start-2">
+            {/* <div className={`${showCode ? "" : "invisible"} w-full h-full`}> */}
+            {/* <JupyterCell /> */}
+            <textarea className="w-full h-full" rows={20} value={data} onChange={(e) => setData(e.target.value)} />
           </div>
         ) : null}
         <div className="flex justify-right col-start-1">
