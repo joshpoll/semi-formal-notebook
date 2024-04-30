@@ -5,6 +5,12 @@ import { CellDivider } from "./CellDivider";
 import { Cell } from "./Cell";
 import { CellOutputCode } from "./CellOutputCode";
 
+import dynamic from "next/dynamic";
+import { JupyterCell } from "../JupyterCell";
+
+const JupyterCellNoSSR = dynamic(() => import("../JupyterCell"), { ssr: false });
+const JupyterNotebookNoSSR = dynamic(() => import("../JupyterNotebook"), { ssr: false });
+
 type Notebook = Array<{
   id: string;
   title: string;
@@ -59,6 +65,9 @@ export default function Home() {
 
   return (
     <div className="space-y-8 py-12" onPointerDown={() => setFocusedEditor(null)}>
+      {/* <JupyterCellNoSSR />
+      <JupyterCellNoSSR /> */}
+      {/* <JupyterNotebookNoSSR /> */}
       <focusedEditorContext.Provider value={{ focusedEditor, setFocusedEditor }}>
         <div className="flex justify-center">
           <CellDivider onAddCell={addCell(null)} />

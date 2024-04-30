@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@datalayer/icons-react": "^0.3.0",
+    "@datalayer/jupyter-react": "^0.10.0",
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",

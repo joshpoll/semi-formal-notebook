@@ -1,7 +1,11 @@
 import { TLComponents, TLShape, TLUiOverrides, Tldraw, getSvgAsImage } from "tldraw";
 import { addGridToSvg } from "./addGridToSvg";
-import { useContext, useId, useState } from "react";
+import { useCallback, useContext, useId, useMemo, useState } from "react";
 import { focusedEditorContext } from "./page";
+import JupyterCell from "@/JupyterCell";
+import { getHtmlFromOpenAI } from "./getHtmlFromOpenAI";
+import { getCanvasText } from "./getCanvasText";
+import { EXAMPLE_RESPONSE } from "./prompt";
 
 export type CellProps = {
   id: string;
@@ -17,7 +21,7 @@ export function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-const overrides: TLUiOverrides = {
+const overrides = (setCode: (code: string) => void, setData: (data: any) => void): TLUiOverrides => ({
   actions(editor, actions) {
     return {
       ...actions,
@@ -55,11 +59,76 @@ const overrides: TLUiOverrides = {
           const base64img = await blobToBase64(blob);
 
           console.log(base64img);
+
+          // Send everything to OpenAI and get some HTML back
+          try {
+            // const json = await getHtmlFromOpenAI({
+            //   image: base64img,
+            //   apiKey: process.env.NEXT_PUBLIC_API_KEY!,
+            //   text: getCanvasText(editor, shapes),
+            //   // previousPreviews,
+            //   // grid,
+            //   theme: editor.user.getUserPreferences().isDarkMode ? "dark" : "light",
+            // });
+
+            // if (!json) {
+            //   throw Error("Could not contact OpenAI.");
+            // }
+
+            // if (json?.error) {
+            //   throw Error(`${json.error.message?.slice(0, 128)}...`);
+            // }
+
+            // Extract the HTML from the response
+            // const message = json.choices[0].message.content as string;
+            const message = EXAMPLE_RESPONSE;
+            // cut data from ```json to the next occurrence of ```
+            const dataPrefix = "```json";
+            const start = message.indexOf(dataPrefix);
+            const end = message.indexOf("```", start + dataPrefix.length);
+            const data = message.slice(start + dataPrefix.length, end - "```".length + 1);
+
+            // cut function from ```javascript to the next occurrence of ```
+            const codePrefix = "function applet(data, setData) {";
+            const start2 = message.indexOf(codePrefix);
+            const end2 = message.indexOf("```", start2 + codePrefix.length);
+            const code = message.slice(start2 + codePrefix.length, end2 - "```".length - 1);
+
+            console.log(message);
+            // const start = message.indexOf("<!DOCTYPE html>");
+            // const end = message.indexOf("</html>");
+            // const html = message.slice(start, end + "</html>".length);
+
+            // No HTML? Something went wrong
+            if (code.length < 100) {
+              console.warn(message);
+              throw Error("Could not generate a design from those wireframes.");
+            }
+
+            // // Update the shape with the new props
+            // editor.updateShape<PreviewShape>({
+            //   id: newShapeId,
+            //   type: "response",
+            //   props: {
+            //     html,
+            //   },
+            // });
+
+            console.log(`Response: ${message}`);
+            console.log(`Data Response: ${data}`);
+            console.log(`Code Response: ${code}`);
+            setData(JSON.parse(data));
+            setCode(code);
+          } catch (e) {
+            // If anything went wrong, delete the shape.
+            // editor.deleteShape(newShapeId);
+            throw e;
+          }
         },
       },
     };
   },
-};
+});
 
 const components: TLComponents = {
   DebugMenu: null,
@@ -71,8 +140,27 @@ export const CellOutputCode = (props: CellProps) => {
   const id = useId();
 
   const [showCode, setShowCode] = useState(false);
+  const [showSFP, setShowSFP] = useState(true);
 
   const [cellName, setCellName] = useState<string | null>("!CELL OUTPUT CODE!");
+
+  const [code, setCode] = useState<string>(
+    `return '<img src="https://www.cs.ubc.ca/~tmm/courses/547-20/tools/images/vega-lite_barchart.png"></img>'`
+  );
+
+  const [data, setData] = useState<any>(undefined);
+
+  const appliedOverrides = useMemo(() => overrides(setCode, setData), []);
+
+  // changes when the code is updated
+  const codeFunction = useMemo(() => {
+    return new Function("data", "setData", code);
+  }, [code]);
+
+  // const cells = "";
+
+  // changes when either the code is updated or the rest of the notebook is updated
+  const output = useMemo(() => codeFunction(data, setData), [codeFunction, data]);
 
   return (
     <div className="w-full h-full space-y-4 p-4">
@@ -86,47 +174,45 @@ export const CellOutputCode = (props: CellProps) => {
           onChange={(e) => setCellName(e.target.value)}
         />
       </div>
-      <div className="flex justify-center">
-        <img src="https://www.cs.ubc.ca/~tmm/courses/547-20/tools/images/vega-lite_barchart.png" />
-      </div>
       <div className="grid grid-cols-[1fr,1.5fr,1fr] w-full h-full gap-x-4 gap-y-2">
-        <div className="flex justify-left col-start-2 col-span-2">
-          <div className="space-y-4 overflow-auto">
-            <button
-              className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
-              onClick={() => setShowCode(!showCode)}
-            >
-              {showCode ? "Hide Code" : "Show Code"}
-            </button>
-            {showCode ? (
-              <pre className="text-sm">{`import numpy as np
-
-# The first function is for sampling t_i from a uniform distribution.
-def stratified_sampling(t_n, t_f, N, i):
-  return np.random.uniform(
-    t_n + (i - 1)/N * (t_f - t_n),
-    t_n + i/N * (t_f - t_n)
-  )
-
-# The second function is the quadrature rule used to estimate C(r).
-def quadrature_rule(N, c, sigma):
-  C_hat_r = 0
-  for i in range(1, N+1):
-    # delta_i is the distance between adjacent samples
-    delta_i = sigma[i] - sigma[i-1] if i > 0 else sigma[i]
-    T_i = np.exp(-np.sum(sigma[:i] * delta_i))
-    C_hat_r += T_i * (1 - np.exp(-sigma[i] * delta_i)) * c[i-1]
-  return C_hat_r
-`}</pre>
-            ) : null}
-          </div>
+        <div className="col-start-2">
+          <textarea
+            className="w-full h-full"
+            rows={20}
+            value={JSON.stringify(data)}
+            onChange={(e) => setData(JSON.parse(e.target.value))}
+          />
         </div>
-        <div className="w-full h-full space-y-4 col-start-2">
+        <div className="col-start-2" dangerouslySetInnerHTML={{ __html: output }} />
+        <div className="col-start-2">
+          <button
+            className="bg-indigo-200 text-gray-800 px-4 py-2 rounded-lg shadow hover:bg-indigo-300"
+            onClick={() => setShowCode(!showCode)}
+          >
+            {showCode ? "Hide Code" : "Show Code"}
+          </button>
+        </div>
+        {showCode ? (
+          <div className="flex justify-left col-start-2">
+            {/* <div className={`${showCode ? "" : "invisible"} w-full h-full`}> */}
+            {/* <JupyterCell /> */}
+            <textarea className="w-full h-full" rows={20} value={code} onChange={(e) => setCode(e.target.value)} />
+          </div>
+        ) : null}
+        <div className="flex justify-right col-start-1">
+          <button onClick={() => setShowSFP(!showSFP)}>{showSFP ? "Hide SFP" : "Show SFP"}</button>
+        </div>
+        <div className={`w-full h-full space-y-4 ${showSFP ? "" : "hidden"}`}>
           <div
             className="flex justify-center tldraw h-[36rem] hover:border-blue-500 hover:border-solid hover:border-2"
             onFocus={() => setFocusedEditor(id)}
           >
-            <Tldraw overrides={overrides} className={id} autoFocus={focusedEditor === id} components={components} />
+            <Tldraw
+              overrides={appliedOverrides}
+              className={id}
+              autoFocus={focusedEditor === id}
+              components={components}
+            />
           </div>
         </div>
       </div>
