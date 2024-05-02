@@ -2,7 +2,19 @@
 
 Implementation inspired by percival.ink.
 
-## Cells
+## Running this
+
+We're using `bun` so install that. Run `bun install` in the repo. Run `bun dev` to run. Optionally
+change the port it runs on with `bun dev --port=XXXX`.
+
+You'll need to add an OpenAI API Key to a top-level `.env.local` file. That file should look like
+this:
+
+```
+NEXT_PUBLIC_API_KEY="sk-proj-..."
+```
+
+## Cells (random thoughts... not reflective of actual implementation)
 
 Each cell has a semi-formal canvas specification region, a data region, and a view region.
 
