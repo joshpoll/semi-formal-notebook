@@ -24,16 +24,16 @@ export const focusedEditorContext = createContext(
   }
 );
 
-type CellType = "data" | "computed" | "function" | "view";
+export type CellType = "data" | "computed" | "function" | "view";
 
-type CellStateEntry = {
+export type CellStateEntry = {
   name: string;
   type: CellType;
   data: string;
   view: string;
 };
 
-type CellState = { [id: string]: CellStateEntry };
+export type CellState = { [id: string]: CellStateEntry };
 
 export const cellStateContext = createContext<[CellState, Dispatch<SetStateAction<CellState>>]>([{}, () => {}]);
 
@@ -91,7 +91,7 @@ export default function Home() {
           {notebook.map((cell, i) => (
             <Fragment key={cell.id}>
               <div className="flex justify-center">
-                <CellOutputCode />
+                <CellOutputCode pos={i} />
               </div>
               <div className="flex justify-center">
                 <CellDivider onAddCell={addCell(i)} />

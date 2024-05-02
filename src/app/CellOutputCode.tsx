@@ -5,9 +5,10 @@ import { cellStateContext, focusedEditorContext } from "./page";
 import JupyterCell from "@/JupyterCell";
 import { getHtmlFromOpenAI } from "./getHtmlFromOpenAI";
 import { getCanvasText } from "./getCanvasText";
-import { EXAMPLE_RESPONSE } from "./prompt";
+import { EXAMPLE_RESPONSE, EXAMPLE_RESPONSE_2, EXAMPLE_RESPONSE_2B, EXAMPLE_RESPONSE_2C } from "./prompt";
 
 export type CellProps = {
+  pos: number;
   // id: string;
   // title: string;
   // content: string;
@@ -21,7 +22,13 @@ export function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-const overrides = (setCode: (code: string) => void, setData: (data: any) => void): TLUiOverrides => ({
+const overrides = (
+  setCode: (code: string) => void,
+  setData: (data: any) => void,
+  setDataValue: (data: any) => void,
+  pos: number,
+  cellState: CellState
+): TLUiOverrides => ({
   actions(editor, actions) {
     return {
       ...actions,
@@ -79,17 +86,19 @@ const overrides = (setCode: (code: string) => void, setData: (data: any) => void
             //   throw Error(`${json.error.message?.slice(0, 128)}...`);
             // }
 
-            // Extract the HTML from the response
+            // // Extract the HTML from the response
             // const message = json.choices[0].message.content as string;
-            const message = EXAMPLE_RESPONSE;
+            // wait 1 second
+            await new Promise((r) => setTimeout(r, 1000));
+            const message = pos === 0 ? EXAMPLE_RESPONSE_2 : pos === 1 ? EXAMPLE_RESPONSE_2B : EXAMPLE_RESPONSE_2C;
             // cut data from ```json to the next occurrence of ```
-            const dataPrefix = "```json";
+            const dataPrefix = "function state() {";
             const start = message.indexOf(dataPrefix);
             const end = message.indexOf("```", start + dataPrefix.length);
             const data = message.slice(start + dataPrefix.length, end - "```".length + 1);
 
             // cut function from ```javascript to the next occurrence of ```
-            const codePrefix = "function applet(data, setData) {";
+            const codePrefix = "function view(state, setState) {";
             const start2 = message.indexOf(codePrefix);
             const end2 = message.indexOf("```", start2 + codePrefix.length);
             const code = message.slice(start2 + codePrefix.length, end2 - "```".length - 1);
@@ -117,7 +126,8 @@ const overrides = (setCode: (code: string) => void, setData: (data: any) => void
             console.log(`Response: ${message}`);
             console.log(`Data Response: ${data}`);
             console.log(`Code Response: ${code}`);
-            setData(JSON.parse(data));
+            setData(data);
+            setDataValue(new Function(data)());
             setCode(code);
           } catch (e) {
             // If anything went wrong, delete the shape.
@@ -175,6 +185,8 @@ export const CellOutputCode = (props: CellProps) => {
     [id, setCellState]
   );
 
+  const [dataValue, setDataValue] = useState<any>(undefined);
+
   const view = cellState[id]?.view;
 
   const setView = useCallback(
@@ -197,21 +209,21 @@ export const CellOutputCode = (props: CellProps) => {
   // const [data, setData] = useState<any>(undefined);
 
   const appliedOverrides = useMemo(
-    () => overrides(setView, (data) => setData(JSON.stringify(data))),
-    [setData, setView]
+    () => overrides(setView, setData, setDataValue, props.pos, cellState),
+    [cellState, props.pos, setData, setView]
   );
 
   // changes when the code is updated
   const codeFunction = useMemo(() => {
-    return new Function("data", "setData", view);
+    return new Function("state", "setState", view);
   }, [view]);
 
   // const cells = "";
 
   // changes when either the code is updated or the rest of the notebook is updated
   const output = useMemo(() => {
-    return codeFunction(JSON.parse(data ?? "{}"), (data: any) => setData(JSON.stringify(data)));
-  }, [codeFunction, data, setData]);
+    return codeFunction(dataValue, setData);
+  }, [codeFunction, dataValue, setData]);
 
   return (
     <div className="w-full h-full space-y-4 p-4">
@@ -262,7 +274,15 @@ export const CellOutputCode = (props: CellProps) => {
           <div className="flex justify-left col-start-2">
             {/* <div className={`${showCode ? "" : "invisible"} w-full h-full`}> */}
             {/* <JupyterCell /> */}
-            <textarea className="w-full h-full" rows={20} value={data} onChange={(e) => setData(e.target.value)} />
+            <textarea
+              className="w-full h-full"
+              rows={20}
+              value={data}
+              onChange={(e) => {
+                setData(e.target.value);
+                setDataValue(new Function(e.target.value)());
+              }}
+            />
           </div>
         ) : null}
         <div className="flex justify-right col-start-1">
